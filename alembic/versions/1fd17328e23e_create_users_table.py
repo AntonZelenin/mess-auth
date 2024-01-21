@@ -22,7 +22,7 @@ def upgrade() -> None:
         'users',
         sa.Column('user_id', sa.String(32), primary_key=True),
         sa.Column('username', sa.String(255), nullable=False),
-        sa.Column('hashed_password', sa.String(255), nullable=False),
+        sa.Column('hashed_password', sa.String(72), nullable=False),
     )
 
 

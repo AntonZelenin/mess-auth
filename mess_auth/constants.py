@@ -1,5 +1,13 @@
 import os
 
+# to get a string like this run:
+# openssl rand -hex 32
+# todo change this to something more secure
+SECRET_KEY = "83eaa7fa1dc94c5f7c5a48f0314ad0d93a33b4c14e8cb7d5c848e999e0b2478e"
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 DB_DRIVER = os.environ.get('DB_DRIVER')
 DB_USER = os.environ.get('DB_USER')
 DB_PASSWORD = os.environ.get('DB_PASSWORD')

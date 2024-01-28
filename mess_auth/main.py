@@ -20,6 +20,7 @@ app = FastAPI()
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -84,12 +85,16 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = utils.create_access_token(
+    access_token = utils.create_jwt(
         data={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
+    refresh_token = utils.create_jwt(
+        data={"sub": user.user_id},
+        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
+    )
 
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
 @app.post("/api/v1/users")

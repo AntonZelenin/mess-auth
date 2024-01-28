@@ -49,7 +49,7 @@ async def custom_form_validation_error(_, exc):
     )
 
 
-@app.get("/api/v1/authorize")
+@app.post("/api/v1/authorize")
 async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,6 +71,47 @@ async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> d
         raise credentials_exception
 
     return payload
+
+
+# todo why id depends on oauth2_scheme and does it automatically validate expiration?
+# todo duplicates
+@app.post("/api/v1/refresh-token")
+async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) -> Token:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = utils.decode_access_token(refresh_token_)
+    except JWTError:
+        raise credentials_exception
+
+    user_id: Optional[str] = payload.get("sub")
+    if user_id is None:
+        raise credentials_exception
+
+    user = repository.get_user(user_id)
+    if user is None:
+        raise credentials_exception
+
+    existing_refresh_token = repository.get_refresh_token(user_id)
+    if existing_refresh_token != refresh_token_:
+        raise credentials_exception
+
+    access_token = utils.create_jwt(
+        data={"sub": user.user_id},
+        expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    refresh_token_ = utils.create_jwt(
+        data={"sub": user.user_id},
+        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
+    )
+
+    repository.update_refresh_token(user_id, refresh_token_)
+
+    return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
 
 
 @app.post("/api/v1/login")
@@ -98,7 +139,7 @@ async def login(
 
 
 @app.post("/api/v1/users")
-async def create_user(user: schemas.User):
+async def create_user(user: schemas.User) -> dict:
     if repository.get_user_by_username(user.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -3,7 +3,7 @@ from datetime import timedelta, timezone, datetime
 from jose import jwt
 from passlib.context import CryptContext
 
-from mess_auth import constants
+from mess_auth import constants, settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -20,8 +20,8 @@ def create_jwt(data: dict, expires_delta: timedelta) -> str:
     to_encode = data.copy()
     to_encode["exp"] = datetime.now(timezone.utc) + expires_delta
 
-    return jwt.encode(to_encode, constants.SECRET_KEY, algorithm=constants.ALGORITHM)
+    return jwt.encode(to_encode, settings.get_settings().secret_key, algorithm=constants.ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, constants.SECRET_KEY, algorithms=[constants.ALGORITHM])
+    return jwt.decode(token, settings.get_settings().secret_key, algorithms=[constants.ALGORITHM])

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     def __init__(self):
         if os.environ.get('ENVIRONMENT', 'dev') == 'dev':
-            Settings.model_config = SettingsConfigDict(env_file=constants.ENV_FILE)
+            Settings.model_config = SettingsConfigDict(env_file=constants.DEV_ENV_FILE)
 
         super().__init__()
 

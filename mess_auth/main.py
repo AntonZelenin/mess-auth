@@ -13,7 +13,6 @@ from starlette.responses import JSONResponse
 from mess_auth import repository, schemas, utils, constants
 from mess_auth.models.user import User
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 app = FastAPI()

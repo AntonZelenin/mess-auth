@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,7 +12,11 @@ class Settings(BaseSettings):
     # openssl rand -hex 32
     secret_key: str
 
-    model_config = SettingsConfigDict(env_file=constants.ENV_FILE)
+    def __init__(self):
+        if os.environ.get('ENVIRONMENT', 'dev') == 'dev':
+            Settings.model_config = SettingsConfigDict(env_file=constants.ENV_FILE)
+
+        super().__init__()
 
 
 @lru_cache

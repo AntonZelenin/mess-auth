@@ -7,7 +7,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
-load_dotenv(os.environ.get('ENV_FILE', 'dev.env'))
+if os.environ.get('ENVIRONMENT', 'dev') == 'dev':
+    load_dotenv(os.environ.get('ENV_FILE', 'dev.env'))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

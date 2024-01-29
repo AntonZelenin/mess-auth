@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 COPY mess_auth .
 
+ENV ENVIRONMENT=production
+
 EXPOSE 80
 
 CMD ["uvicorn", "app.main::app", "--host", "0.0.0.0", "--port", "80"]

@@ -49,30 +49,6 @@ async def custom_form_validation_error(_, exc):
     )
 
 
-@app.post("/api/auth/v1/authenticate")
-async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = utils.decode_access_token(token)
-    except JWTError:
-        raise credentials_exception
-
-    user_id: Optional[str] = payload.get("sub")
-    if user_id is None:
-        raise credentials_exception
-
-    user = repository.get_user(user_id)
-    if user is None:
-        raise credentials_exception
-
-    return payload
-
-
 # todo why id depends on oauth2_scheme and does it automatically validate expiration?
 # todo duplicates
 @app.post("/api/auth/v1/refresh-token")

@@ -1,4 +1,3 @@
-import uuid
 from typing import Optional
 
 from mess_auth.db import session
@@ -14,8 +13,8 @@ def get_user_by_username(username: str) -> Optional[User]:
     return session.query(User).filter(User.username == username).first()
 
 
-def create_user(username: str, hashed_password: str) -> User:
-    user = User(user_id=str(uuid.uuid4()).replace('-', ''), username=username, hashed_password=hashed_password)
+def create_user(user_id: str, username: str, hashed_password: str) -> User:
+    user = User(user_id=user_id, username=username, hashed_password=hashed_password)
     session.add(user)
     session.commit()
 

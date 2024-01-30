@@ -146,6 +146,6 @@ async def create_user(user: schemas.User) -> dict:
             detail="User already exists",
         )
 
-    repository.create_user(user.username, utils.get_password_hash(user.password))
+    repository.create_user(user.user_id, user.username, utils.get_password_hash(user.password))
 
     return {"message": "User created successfully"}

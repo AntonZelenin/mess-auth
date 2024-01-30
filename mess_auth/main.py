@@ -49,7 +49,7 @@ async def custom_form_validation_error(_, exc):
     )
 
 
-@app.post("/api/v1/authorize")
+@app.post("/api/auth/v1/authorize")
 async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -75,7 +75,7 @@ async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> d
 
 # todo why id depends on oauth2_scheme and does it automatically validate expiration?
 # todo duplicates
-@app.post("/api/v1/refresh-token")
+@app.post("/api/auth/v1/refresh-token")
 async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) -> Token:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -114,7 +114,7 @@ async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) 
     return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
 
 
-@app.post("/api/v1/login")
+@app.post("/api/auth/v1/login")
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
@@ -138,7 +138,7 @@ async def login(
     return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
-@app.post("/api/v1/users")
+@app.post("/api/auth/v1/users")
 async def create_user(user: schemas.User) -> dict:
     if repository.get_user_by_username(user.username):
         raise HTTPException(

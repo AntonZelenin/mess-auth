@@ -16,12 +16,20 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_jwt(data: dict, expires_delta: timedelta) -> str:
-    to_encode = data.copy()
+def create_jwt(claims: dict, expires_delta: timedelta, headers: dict = None) -> str:
+    to_encode = claims.copy()
     to_encode["exp"] = datetime.now(timezone.utc) + expires_delta
 
-    return jwt.encode(to_encode, settings.get_settings().secret_key, algorithm=constants.ALGORITHM)
+    headers = headers or {}
+    headers['kid'] = settings.get_settings().jwt_kid
+
+    return jwt.encode(
+        claims=to_encode,
+        key=settings.get_settings().jwt_secret_key,
+        algorithm=constants.ALGORITHM,
+        headers=headers,
+    )
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, settings.get_settings().secret_key, algorithms=[constants.ALGORITHM])
+    return jwt.decode(token, settings.get_settings().jwt_secret_key, algorithms=[constants.ALGORITHM])

@@ -101,11 +101,11 @@ async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) 
         raise credentials_exception
 
     access_token = utils.create_jwt(
-        data={"sub": user.user_id},
+        claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token_ = utils.create_jwt(
-        data={"sub": user.user_id},
+        claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 
@@ -127,11 +127,11 @@ async def login(
         )
 
     access_token = utils.create_jwt(
-        data={"sub": user.user_id},
+        claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = utils.create_jwt(
-        data={"sub": user.user_id},
+        claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 

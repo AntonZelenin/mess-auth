@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     db_url: str
     # to get a string like this run:
     # openssl rand -hex 32
-    secret_key: str
+    jwt_secret_key: str
+    jwt_kid: str
 
     def __init__(self):
         if os.environ.get('ENVIRONMENT', 'dev') == 'dev':

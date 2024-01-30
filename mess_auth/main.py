@@ -49,7 +49,7 @@ async def custom_form_validation_error(_, exc):
     )
 
 
-@app.post("/api/auth/v1/authorize")
+@app.post("/api/auth/v1/authenticate")
 async def authenticate_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

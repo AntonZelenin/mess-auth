@@ -51,6 +51,32 @@ async def custom_form_validation_error(_, exc):
     )
 
 
+# todo make sure user is active everywhere
+@app.post("/api/auth/v1/login")
+async def login(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        session: AsyncSession = Depends(get_session),
+) -> Token:
+    user = await authenticate_by_creds(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = utils.create_jwt(
+        claims={"sub": user.user_id},
+        expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    refresh_token_ = utils.create_jwt(
+        claims={"sub": user.user_id},
+        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
+    )
+
+    return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
+
+
 # todo why id depends on oauth2_scheme and does it automatically validate expiration?
 # todo duplicates
 @app.post("/api/auth/v1/refresh-token")
@@ -90,31 +116,6 @@ async def refresh_token(
     )
 
     await repository.update_refresh_token(session, user_id, refresh_token_)
-
-    return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
-
-
-@app.post("/api/auth/v1/login")
-async def login(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        session: AsyncSession = Depends(get_session),
-) -> Token:
-    user = await authenticate_by_creds(session, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    access_token = utils.create_jwt(
-        claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
-    refresh_token_ = utils.create_jwt(
-        claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
-    )
 
     return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
 

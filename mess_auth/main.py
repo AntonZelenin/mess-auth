@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from mess_auth import repository, schemas, utils, constants
+from mess_auth import repository, schemas, utils, settings
 from mess_auth.db import get_session
 from mess_auth.models.user import User
 
@@ -67,11 +67,11 @@ async def login(
 
     access_token = utils.create_jwt(
         claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
     refresh_token_ = utils.create_jwt(
         claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
 
     return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
@@ -108,11 +108,11 @@ async def refresh_token(
 
     access_token = utils.create_jwt(
         claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
     refresh_token_ = utils.create_jwt(
         claims={"sub": user.user_id},
-        expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
 
     await repository.update_refresh_token(session, user_id, refresh_token_)

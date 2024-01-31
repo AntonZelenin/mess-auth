@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # openssl rand -hex 32
     jwt_secret_key: str
     jwt_kid: str
+    access_token_expire_minutes: int
+    refresh_token_expire_minutes: int
 
     def __init__(self):
         if os.environ.get('ENVIRONMENT', 'dev') == 'dev':

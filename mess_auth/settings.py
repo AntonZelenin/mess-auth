@@ -8,6 +8,7 @@ from mess_auth import constants
 
 class Settings(BaseSettings):
     db_url: str
+    async_db_url: str
     # to get a string like this run:
     # openssl rand -hex 32
     jwt_secret_key: str

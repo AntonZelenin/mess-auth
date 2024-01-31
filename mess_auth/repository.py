@@ -1,47 +1,51 @@
 from typing import Optional
 
-from mess_auth.db import session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from mess_auth.models.token import RefreshToken
 from mess_auth.models.user import User
 
 
-def get_user(user_id: str) -> Optional[User]:
-    return session.query(User).filter(User.user_id == user_id).first()
+async def get_user(session: AsyncSession, user_id: str) -> Optional[User]:
+    return (await session.scalars(select(User).filter(User.user_id == user_id))).first()
 
 
-def get_user_by_username(username: str) -> Optional[User]:
-    return session.query(User).filter(User.username == username).first()
+async def get_user_by_username(session: AsyncSession, username: str) -> Optional[User]:
+    return (await session.scalars(select(User).filter(User.username == username))).first()
 
 
-def create_user(user_id: str, username: str, hashed_password: str) -> User:
+async def create_user(session: AsyncSession, user_id: str, username: str, hashed_password: str) -> User:
     user = User(user_id=user_id, username=username, hashed_password=hashed_password)
     session.add(user)
-    session.commit()
+    await session.commit()
+    await session.refresh(user)
 
     return user
 
 
-def get_refresh_token(user_id: str) -> Optional[str]:
-    return session.query(RefreshToken.refresh_token).filter(RefreshToken.user_id == user_id).first()
+async def get_refresh_token(session: AsyncSession, user_id: str) -> Optional[str]:
+    return (await session.scalars(select(RefreshToken.refresh_token).filter(RefreshToken.user_id == user_id))).first()
 
 
-def create_refresh_token(user_id: str, refresh_token: str) -> RefreshToken:
+async def create_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:
     token = RefreshToken(user_id=user_id, refresh_token=refresh_token)
     session.add(token)
-    session.commit()
+    await session.commit()
+    await session.refresh(token)
 
     return token
 
 
-def update_refresh_token(user_id: str, refresh_token: str) -> RefreshToken:
-    token = session.query(RefreshToken).filter(RefreshToken.user_id == user_id).first()
+# todo if multiple devices are used they'll break each other tokens
+async def update_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:
+    token = (await session.scalars(select(RefreshToken).filter(RefreshToken.user_id == user_id))).first()
 
-    # todo maybe raise error if no token found?
     if token is None:
-        token = create_refresh_token(user_id, refresh_token)
-        return token
+        return await create_refresh_token(session, user_id, refresh_token)
 
     token.refresh_token = refresh_token
-    session.commit()
+    await session.commit()
+    await session.refresh(token)
 
     return token

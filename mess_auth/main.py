@@ -8,9 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
 from mess_auth import repository, schemas, utils, constants
+from mess_auth.db import get_session
 from mess_auth.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
@@ -24,8 +26,8 @@ class Token(BaseModel):
     token_type: str
 
 
-def authenticate_by_creds(username: str, password: str) -> Optional[User]:
-    user = repository.get_user_by_username(username)
+async def authenticate_by_creds(session: AsyncSession, username: str, password: str) -> Optional[User]:
+    user = await repository.get_user_by_username(session, username)
     if user and utils.is_valid_password(password, user.hashed_password):
         return user
 
@@ -52,7 +54,9 @@ async def custom_form_validation_error(_, exc):
 # todo why id depends on oauth2_scheme and does it automatically validate expiration?
 # todo duplicates
 @app.post("/api/auth/v1/refresh-token")
-async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) -> Token:
+async def refresh_token(
+        refresh_token_: Annotated[str, Depends(oauth2_scheme)], session: AsyncSession = Depends(get_session),
+) -> Token:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -68,11 +72,11 @@ async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) 
     if user_id is None:
         raise credentials_exception
 
-    user = repository.get_user(user_id)
+    user = await repository.get_user(session, user_id)
     if user is None:
         raise credentials_exception
 
-    existing_refresh_token = repository.get_refresh_token(user_id)
+    existing_refresh_token = await repository.get_refresh_token(session, user_id)
     if existing_refresh_token != refresh_token_:
         raise credentials_exception
 
@@ -85,16 +89,17 @@ async def refresh_token(refresh_token_: Annotated[str, Depends(oauth2_scheme)]) 
         expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 
-    repository.update_refresh_token(user_id, refresh_token_)
+    await repository.update_refresh_token(session, user_id, refresh_token_)
 
     return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
 
 
 @app.post("/api/auth/v1/login")
 async def login(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        session: AsyncSession = Depends(get_session),
 ) -> Token:
-    user = authenticate_by_creds(form_data.username, form_data.password)
+    user = await authenticate_by_creds(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,22 +111,22 @@ async def login(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    refresh_token = utils.create_jwt(
+    refresh_token_ = utils.create_jwt(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=constants.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 
-    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
 
 
 @app.post("/api/auth/v1/users")
-async def create_user(user: schemas.User) -> dict:
-    if repository.get_user_by_username(user.username):
+async def create_user(user: schemas.User, session: AsyncSession = Depends(get_session)) -> dict:
+    if await repository.get_user_by_username(session, user.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already exists",
         )
 
-    repository.create_user(user.user_id, user.username, utils.get_password_hash(user.password))
+    await repository.create_user(session, user.user_id, user.username, utils.get_password_hash(user.password))
 
     return {"message": "User created successfully"}

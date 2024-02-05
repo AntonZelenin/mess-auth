@@ -6,24 +6,19 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError
-from pydantic import BaseModel
+from jose import JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from mess_auth import repository, schemas, utils, settings
+from mess_auth import repository, schemas, utils, settings, logger
 from mess_auth.db import get_session
 from mess_auth.models.user import User
+from mess_auth.schemas import RefreshTokenRequest, Token
 
+logger_ = logger.get_logger(__name__, stdout=True)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 app = FastAPI()
-
-
-class Token(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
 
 
 async def authenticate_by_creds(session: AsyncSession, username: str, password: str) -> Optional[User]:
@@ -69,20 +64,19 @@ async def login(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
-    refresh_token_ = utils.create_jwt(
+    refresh_token = utils.create_jwt(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
-    await repository.create_refresh_token(session, user.user_id, refresh_token_)
+    await repository.create_refresh_token(session, user.user_id, refresh_token)
 
-    return Token(access_token=access_token, refresh_token=refresh_token_, token_type="bearer")
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
-# todo why id depends on oauth2_scheme and does it automatically validate expiration?
 # todo duplicates
 @app.post("/api/auth/v1/refresh-token")
 async def refresh_token_(
-        refresh_token: Annotated[str, Depends(oauth2_scheme)], session: AsyncSession = Depends(get_session),
+        refresh_token_request: RefreshTokenRequest, session: AsyncSession = Depends(get_session),
 ) -> Token:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -91,34 +85,41 @@ async def refresh_token_(
     )
 
     try:
-        payload = utils.decode_access_token(refresh_token)
+        payload = utils.decode_access_token(refresh_token_request.refresh_token)
+    except ExpiredSignatureError:
+        logger_.info("Expired refresh token")
+        raise credentials_exception
     except JWTError:
+        logger_.info("Invalid refresh token")
         raise credentials_exception
 
-    user_id: Optional[str] = payload.get("sub")
+    user_id = payload.get("sub")
     if user_id is None:
+        logger_.info("`sub` field is not found in refresh token payload")
         raise credentials_exception
 
     user = await repository.get_user(session, user_id)
     if user is None:
+        logger_.info("User from the refresh token not found")
         raise credentials_exception
 
     existing_refresh_token = await repository.get_refresh_token(session, user_id)
-    if existing_refresh_token != refresh_token:
+    if existing_refresh_token != refresh_token_request.refresh_token:
+        logger_.info("Refresh token does not match the one in the database")
         raise credentials_exception
 
     access_token = utils.create_jwt(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
-    refresh_token = utils.create_jwt(
+    refresh_token_request = utils.create_jwt(
         claims={"sub": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
 
-    await repository.update_refresh_token(session, user_id, refresh_token)
+    await repository.update_refresh_token(session, user_id, refresh_token_request)
 
-    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return Token(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer")
 
 
 @app.post("/api/auth/v1/users")

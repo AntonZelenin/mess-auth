@@ -25,7 +25,7 @@ async def create_user(session: AsyncSession, user_id: str, username: str, hashed
 
 
 async def get_refresh_token(session: AsyncSession, user_id: str) -> Optional[str]:
-    return (await session.scalars(select(RefreshToken.refresh_token).filter(RefreshToken.user_id == user_id))).first()
+    return (await session.scalars(select(RefreshToken.token).filter(RefreshToken.user_id == user_id))).first()
 
 
 async def create_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:
@@ -38,14 +38,14 @@ async def create_refresh_token(session: AsyncSession, user_id: str, refresh_toke
 
 
 # todo if multiple devices are used they'll break each other tokens
-async def update_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:
-    token = (await session.scalars(select(RefreshToken).filter(RefreshToken.user_id == user_id))).first()
+async def update_refresh_token(session: AsyncSession, user_id: str, new_refresh_token: str) -> RefreshToken:
+    refresh_token = (await session.scalars(select(RefreshToken).filter(RefreshToken.user_id == user_id))).first()
 
-    if token is None:
-        return await create_refresh_token(session, user_id, refresh_token)
+    if refresh_token is None:
+        return await create_refresh_token(session, user_id, new_refresh_token)
 
-    token.refresh_token = refresh_token
+    refresh_token.token = new_refresh_token
     await session.commit()
-    await session.refresh(token)
+    await session.refresh(refresh_token)
 
-    return token
+    return refresh_token

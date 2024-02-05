@@ -29,7 +29,7 @@ async def get_refresh_token(session: AsyncSession, user_id: str) -> Optional[str
 
 
 async def create_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:
-    token = RefreshToken(user_id=user_id, refresh_token=refresh_token)
+    token = RefreshToken(user_id=user_id, token=refresh_token)
     session.add(token)
     await session.commit()
     await session.refresh(token)

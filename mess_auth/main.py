@@ -74,6 +74,7 @@ async def login(
 
 
 # todo duplicates
+# todo I need a mechanism to remove old refresh tokens from the database
 @app.post("/api/auth/v1/refresh-token")
 async def refresh_token_(
         refresh_token_request: RefreshTokenRequest, session: AsyncSession = Depends(get_session),
@@ -103,8 +104,7 @@ async def refresh_token_(
         logger_.info("User from the refresh token not found")
         raise credentials_exception
 
-    existing_refresh_token = await repository.get_refresh_token(session, user_id)
-    if existing_refresh_token != refresh_token_request.refresh_token:
+    if not await repository.refresh_token_exists(session, user_id, refresh_token_request.refresh_token):
         logger_.info("Refresh token does not match the one in the database")
         raise credentials_exception
 

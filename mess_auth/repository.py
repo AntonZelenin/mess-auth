@@ -24,8 +24,12 @@ async def create_user(session: AsyncSession, user_id: str, username: str, hashed
     return user
 
 
-async def get_refresh_token(session: AsyncSession, user_id: str) -> Optional[str]:
-    return (await session.scalars(select(RefreshToken.token).filter(RefreshToken.user_id == user_id))).first()
+async def refresh_token_exists(session: AsyncSession, user_id: str, token: str) -> Optional[str]:
+    return (
+        await session.scalars(
+            select(RefreshToken.token).filter(RefreshToken.user_id == user_id, RefreshToken.token == token)
+        )
+    ).first() is not None
 
 
 async def create_refresh_token(session: AsyncSession, user_id: str, refresh_token: str) -> RefreshToken:

@@ -61,7 +61,7 @@ async def login(
         )
 
     access_token = utils.create_jwt(
-        claims={"sub": user.user_id},
+        claims={"sub": user.user_id, "username": user.username},
         expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
     refresh_token = utils.create_jwt(

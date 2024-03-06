@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from mess_auth import repository, schemas, utils, settings, logger
 from mess_auth.db import get_session
 from mess_auth.models.user import User
-from mess_auth.schemas import RefreshTokenRequest, Token
+from mess_auth.schemas import RefreshTokenRequest, LoginData
 
 logger_ = logger.get_logger(__name__, stdout=True)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
@@ -51,7 +51,7 @@ async def custom_form_validation_error(_, exc):
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         session: AsyncSession = Depends(get_session),
-) -> Token:
+) -> LoginData:
     user = await authenticate_by_creds(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -61,16 +61,16 @@ async def login(
         )
 
     access_token = utils.create_jwt(
-        claims={"sub": user.user_id, "username": user.username},
+        claims={"user-id": user.user_id, "username": user.username},
         expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
     refresh_token = utils.create_jwt(
-        claims={"sub": user.user_id},
+        claims={"user-id": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
     await repository.create_refresh_token(session, user.user_id, refresh_token)
 
-    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return LoginData(access_token=access_token, refresh_token=refresh_token, token_type="bearer", user_id=user.user_id)
 
 
 # todo duplicates
@@ -78,7 +78,7 @@ async def login(
 @app.post("/api/auth/v1/refresh-token")
 async def refresh_token_(
         refresh_token_request: RefreshTokenRequest, session: AsyncSession = Depends(get_session),
-) -> Token:
+) -> LoginData:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -94,9 +94,9 @@ async def refresh_token_(
         logger_.info("Invalid refresh token")
         raise credentials_exception
 
-    user_id = payload.get("sub")
+    user_id = payload.get("user-id")
     if user_id is None:
-        logger_.info("`sub` field is not found in refresh token payload")
+        logger_.info("`user-id` field is not found in refresh token payload")
         raise credentials_exception
 
     user = await repository.get_user(session, user_id)
@@ -109,17 +109,17 @@ async def refresh_token_(
         raise credentials_exception
 
     access_token = utils.create_jwt(
-        claims={"sub": user.user_id, "username": user.username},
+        claims={"user-id": user.user_id, "username": user.username},
         expires_delta=timedelta(minutes=settings.get_settings().access_token_expire_minutes),
     )
     refresh_token_request = utils.create_jwt(
-        claims={"sub": user.user_id},
+        claims={"user-id": user.user_id},
         expires_delta=timedelta(minutes=settings.get_settings().refresh_token_expire_minutes),
     )
 
     await repository.update_refresh_token(session, user_id, refresh_token_request)
 
-    return Token(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer")
+    return LoginData(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer", user_id=user.user_id)
 
 
 @app.post("/api/auth/v1/users")

@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from mess_auth import repository, schemas, utils, settings, logger
 from mess_auth.db import get_session
 from mess_auth.models.user import User
-from mess_auth.schemas import RefreshTokenRequest, LoginData
+from mess_auth.schemas import RefreshTokenRequest, LoginData, LoginRequest
 
 logger_ = logger.get_logger(__name__, stdout=True)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
@@ -49,10 +49,10 @@ async def custom_form_validation_error(_, exc):
 # todo make sure user is active everywhere
 @app.post("/api/auth/v1/login")
 async def login(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        request: Annotated[LoginRequest, Depends()],
         session: AsyncSession = Depends(get_session),
 ) -> LoginData:
-    user = await authenticate_by_creds(session, form_data.username, form_data.password)
+    user = await authenticate_by_creds(session, request.username, request.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,7 +119,8 @@ async def refresh_token_(
 
     await repository.update_refresh_token(session, user_id, refresh_token_request)
 
-    return LoginData(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer", user_id=user.user_id)
+    return LoginData(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer",
+                     user_id=user.user_id)
 
 
 @app.post("/api/auth/v1/users")

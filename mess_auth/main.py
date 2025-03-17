@@ -1,11 +1,10 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Annotated, Optional
+from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
@@ -16,7 +15,6 @@ from mess_auth.models.user import User
 from mess_auth.schemas import RefreshTokenRequest, LoginData, LoginRequest
 
 logger_ = logger.get_logger(__name__, stdout=True)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 app = FastAPI()
 
@@ -49,7 +47,7 @@ async def custom_form_validation_error(_, exc):
 # todo make sure user is active everywhere
 @app.post("/api/auth/v1/login")
 async def login(
-        request: Annotated[LoginRequest, Depends()],
+        request: LoginRequest,
         session: AsyncSession = Depends(get_session),
 ) -> LoginData:
     user = await authenticate_by_creds(session, request.username, request.password)

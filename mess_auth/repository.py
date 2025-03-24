@@ -53,3 +53,13 @@ async def update_refresh_token(session: AsyncSession, user_id: str, new_refresh_
     await session.refresh(refresh_token)
 
     return refresh_token
+
+
+async def delete_refresh_token(session: AsyncSession, user_id: str, token: str) -> None:
+    refresh_token = (
+        await session.scalars(select(RefreshToken).filter(RefreshToken.user_id == user_id, RefreshToken.token == token))
+    ).first()
+
+    if refresh_token is not None:
+        await session.delete(refresh_token)
+        await session.commit()

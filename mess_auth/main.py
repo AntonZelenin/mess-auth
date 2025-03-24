@@ -117,8 +117,40 @@ async def refresh_token_(
 
     await repository.update_refresh_token(session, user_id, refresh_token_request)
 
-    return LoginData(access_token=access_token, refresh_token=refresh_token_request, token_type="bearer",
-                     user_id=user.user_id)
+    return LoginData(
+        access_token=access_token,
+        refresh_token=refresh_token_request,
+        token_type="bearer",
+        user_id=user.user_id
+    )
+
+
+@app.post("/api/auth/v1/logout")
+async def logout(
+        refresh_token_request: RefreshTokenRequest, session: AsyncSession = Depends(get_session),
+) -> dict:
+    try:
+        payload = utils.decode_access_token(refresh_token_request.refresh_token)
+    except ExpiredSignatureError:
+        logger_.info("Expired refresh token")
+        return {"message": "Expired refresh token"}
+    except JWTError:
+        logger_.info("Invalid refresh token")
+        return {"message": "Invalid refresh token"}
+
+    user_id = payload.get("user-id")
+    if user_id is None:
+        logger_.info("`user-id` field is not found in refresh token payload")
+        return {"message": "Could not validate credentials"}
+
+    user = await repository.get_user(session, user_id)
+    if user is None:
+        logger_.info("User from the refresh token not found")
+        return {"message": "Could not validate credentials"}
+
+    await repository.delete_refresh_token(session, user_id, refresh_token_request.refresh_token)
+
+    return {"message": "Logged out successfully"}
 
 
 @app.post("/api/auth/v1/users")
